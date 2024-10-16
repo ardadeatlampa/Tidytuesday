@@ -1,0 +1,83 @@
+---
+title: "Semana 42 de Tidytuesday: Orcas"
+author: "Chris Gatica"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+Sys.setlocale("LC_ALL", "es_ES.UTF-8")
+```
+
+
+
+```{r}
+library(pacman)
+p_load("tidyverse", "tidytuesdayR", "ggmap", "leaflet", "htmlwidgets")
+```
+
+```{r}
+tuesdata <- tidytuesdayR::tt_load(2024, week = 42)
+
+orcas <- tuesdata$orcas
+#rm(tuesdata)
+```
+
+```{r}
+orcas<- orcas %>% 
+  filter(!is.na(duration),
+         !str_detect(duration,"-")) %>% 
+  mutate(duration= str_replace(duration, "s.*$", ""),
+         duration=as.numeric(duration)) %>% 
+  filter(duration>3600) %>% 
+  mutate(duracion_formato = seconds_to_period(duration))
+```
+
+```{r}
+# Función para normalizar la duración y crear íconos con tamaño variable
+create_icon <- function(duration, min_duration, max_duration) {
+  # Establecer límites para el tamaño del icono
+  min_size <- 20
+  max_size <- 80
+  
+  # Normalización de la duración para que esté en el rango [min_size, max_size]
+  size <- min_size + (duration - min_duration) / (max_duration - min_duration) * (max_size - min_size)
+  
+  # Crear el icono con el tamaño calculado
+  icons(
+    iconUrl = "https://s2.coinmarketcap.com/static/img/coins/200x200/11165.png",  # URL del ícono
+    iconWidth = size,
+    iconHeight = size
+  )
+}
+
+# Definir valores mínimos y máximos de duración en el dataset
+min_duration <- min(orcas$duration)
+max_duration <- max(orcas$duration)
+```
+
+
+```{r}
+# Crear el mapa con iconos escalados
+mimapaz<-orcas %>%
+  leaflet() %>%
+  addTiles() %>%
+  addMarkers(
+    ~begin_longitude, 
+    ~begin_latitude,
+    icon = ~create_icon(duration, min_duration, max_duration),
+     popup = ~paste("Duración:", duracion_formato))
+   
+
+```
+```{r}
+mimapa <- mimapaz %>% 
+  addControl("<strong>Apariciones de orcas durante 2017-2024 en el Mar de los Salish</strong><br>Encuentros registrados por Center for Whale Research que duraron más de una hora. Elaboración Christian Gatica",
+             position = "topright", 
+             )
+saveWidget(mimapa, file = "mi_mapa.html")
+```
+
+
+
